@@ -48,7 +48,7 @@ N_start_offset
 N_range
 gene_freq_histogram_predicted_strains
 new_core_genes_predicted_strains
-return
+
 %{
 **************************************************************************
 SECTION 2.  RUN OPTIMIZATION
