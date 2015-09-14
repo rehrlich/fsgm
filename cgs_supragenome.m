@@ -1,17 +1,18 @@
-function cgs_supragenome()
+function cgs_supragenome(name, counts)
 %Calculate various parameters using the finite supragenome model of Hogg et al.
-%The function ''cgs_supragenome'' uses the observed frequencies of genes in a 
-%set of bacterial genomes and the finite supragenome model of Hogg et al. 
-%(Genome Biol. 8, R103 (2007)) to calculate the maximum-likelihood (ML) values 
-%for N, the size (in genes) of a bacterial supragenome (pan-genome); pi, the 
-%(K-element) vector of mixture coefficients or probabilities that a given gene 
-%in N will fall in one of the K population gene-frequency-defined classes of genes; 
-%and mu, the (K-element) vector of population gene-frequencies for each gene class. 
-%Other statistics are calculated based on the ML values of N, pi, and mu.  One mode 
-%of running this program is to just calculate these statistics based on previously 
+%The function ''cgs_supragenome'' uses the observed frequencies of genes in a
+%set of bacterial genomes and the finite supragenome model of Hogg et al.
+%(Genome Biol. 8, R103 (2007)) to calculate the maximum-likelihood (ML) values
+%for N, the size (in genes) of a bacterial supragenome (pan-genome); pi, the
+%(K-element) vector of mixture coefficients or probabilities that a given gene
+%in N will fall in one of the K population gene-frequency-defined classes of genes;
+%and mu, the (K-element) vector of population gene-frequencies for each gene class.
+%Other statistics are calculated based on the ML values of N, pi, and mu.  One mode
+%of running this program is to just calculate these statistics based on previously
 %determined ML values of N, pi, and mu.
 
 programStart = datestr(now);
+warning('off', 'MATLAB:nearlySingularMatrix')
 
 %{
 **************************************************************************
@@ -20,54 +21,21 @@ SECTION 1.  GET INPUT DATA FROM USER
 %}
 get_prompts();
 
-fileName_diary = input(prompt_fileName_diary, 's');
-fileName_diary = ['CommandWindow_', fileName_diary, '.txt'];
+fileName_diary = ['CommandWindow_', name, '.txt'];
 diary(fileName_diary);
 
-gene_freq_histogram_predicted_strains = ...
-    input(prompt_gene_freq_histogram_predicted_strains);
-new_core_genes_predicted_strains = ...
-    get_input_numeric(30, prompt_new_core_genes_predicted_strains);
+gene_freq_histogram_predicted_strains = size(counts, 2);
+new_core_genes_predicted_strains = size(counts, 2) * 10;
 
-if get_run_option() == 2
-    ML_N = input(prompt_ML_N);
-    ML_gclass_mixcoeff = input(prompt_ML_gclass_mixcoeff);
-    ML_gclass_probs = input(prompt_ML_gclass_probs);
-    
-    %Echo input data (notice the absence of semi-colon line endings):
-    ML_N
-    ML_gclass_mixcoeff
-    ML_gclass_probs
-    gene_freq_histogram_predicted_strains
-    new_core_genes_predicted_strains
-    
-    run_stats(...
-        ML_N,...
-        ML_gclass_mixcoeff,...
-        ML_gclass_probs,...
-        gene_freq_histogram_predicted_strains,...
-        new_core_genes_predicted_strains...
-        );
-    return;
-end
+fileName_N_vs_likelihood = ['N_vs_likelihood_', name, '.txt'];
 
-fileName_N_vs_likelihood = input(prompt_fileName_N_vs_likelihood, 's');
-fileName_N_vs_likelihood = ['N_vs_likelihood_', fileName_N_vs_likelihood, '.txt'];
-
-gene_freq_histogram_observed = ...
-    input(prompt_gene_freq_histogram_observed);
-gclass_probs_start = ...
-    get_input_numeric([0.1 0.3 0.5 0.7 0.9 1.0], prompt_gclass_probs_start);
-gclass_probs_separation_min = ...
-    get_input_numeric(0.05, prompt_gclass_probs_separation_min);
-gclass_probs_min = ...
-    get_input_numeric(0.01, prompt_gclass_probs_min);
-gclass_mixcoeff_min = ...
-    get_input_numeric(0.01, prompt_gclass_mixcoeff_min);
-N_start_offset = ...
-    get_input_numeric(10, prompt_N_start_offset);
-N_range = ...
-    get_input_numeric(4000, prompt_N_range);
+gene_freq_histogram_observed = counts;
+gclass_probs_start = [0.1 0.3 0.5 0.7 0.9 1.0];
+gclass_probs_separation_min = 0.05;
+gclass_probs_min = 0.01;
+gclass_mixcoeff_min =0.01;
+N_start_offset = 10;
+N_range = 4000;
 
 %Echo input data (notice the absence of semi-colon line endings):
 fileName_N_vs_likelihood
@@ -80,7 +48,7 @@ N_start_offset
 N_range
 gene_freq_histogram_predicted_strains
 new_core_genes_predicted_strains
-
+return
 %{
 **************************************************************************
 SECTION 2.  RUN OPTIMIZATION
@@ -95,7 +63,7 @@ K = length(gclass_probs_start);
 
 % calculate a constant factored out of ML optimization funtion:
 fixFact = 0;
-for i = 1 : S 
+for i = 1 : S
     for n = 2:gene_freq_histogram_observed(i+1)
         fixFact = fixFact - log(n);
     end
@@ -116,11 +84,11 @@ options = optimset('LargeScale', 'off', 'FunValCheck', 'on', 'Display', 'off');
 % sum of mixture coefficients = 1
 % set 'core' gclass_prob = 1
 Aeq = [ ones(1,K),   zeros(1,K);      ...
-      zeros(1,K),  zeros(1,K-1), 1   ];
+    zeros(1,K),  zeros(1,K-1), 1   ];
 beq = [ 1; 1 ];
 
 % make sure Freq[class(i)] < Freq[class(i+1)]
-A = [  zeros(K-1,K), diag( ones(K-1,1) ) + diag( -ones(K-2,1), 1), [zeros(K-2,1); -1]  ];                    
+A = [  zeros(K-1,K), diag( ones(K-1,1) ) + diag( -ones(K-2,1), 1), [zeros(K-2,1); -1]  ];
 b = -gclass_probs_separation_min * ones(K-1,1);
 
 % bounds mixing coefficients and class frequencies
@@ -143,7 +111,7 @@ ML_params = start_params;
 
 % begin optimization at N=Nmin
 for N = Nmin : Nmax
-    % unseen 
+    % unseen
     gene_freq_histogram_observed(1) = N - ...
         sum( gene_freq_histogram_observed( 2:length(gene_freq_histogram_observed) ) );
     fact = fixFact;
@@ -154,19 +122,19 @@ for N = Nmin : Nmax
     % optimize gclass mixture coefficients and probs assuming N genes in supragenome
     params = fmincon( @likelihood, ML_params, A, b, Aeq, beq, lb, ub, [], options );
     
-    % normalize log probability 
+    % normalize log probability
     logProb = -likelihood( params ) + fact;
     
     % add result to X array
     X = [X; [N logProb] ];
     
     % check if this is the max likelihood
-    if ( logProb > ML_logProb )     
+    if ( logProb > ML_logProb )
         ML_logProb = logProb;
         ML_params = params;
         ML_N = N;
     end
-
+    
     N+1;
 end
 
@@ -202,7 +170,7 @@ SECTION 4.  FUNCTIONS:
                 )
 
 **************************************************************************
-%}
+    %}
     function get_prompts()
         prompt_fileName_diary = [...
             'Enter a string (e.g., ''Saureus17'', without quotes) to yield a ',...
@@ -293,9 +261,9 @@ SECTION 4.  FUNCTIONS:
             run_option = int32(run_option_buffer);
         end
     end
-        
+
     function input_numeric = get_input_numeric(default_numeric, parameter_description)
-        input_prompt = [... 
+        input_prompt = [...
             'Press return to accept the default shown in parentheses, or enter an ',...
             'alternative for the ',...
             parameter_description,...
@@ -339,17 +307,17 @@ SECTION 4.  FUNCTIONS:
         K = length(ML_gclass_mixcoeff);
         S = gene_freq_histogram_predicted_strains;
         
-        % generate histogram of the predicted number of genes in n of 
+        % generate histogram of the predicted number of genes in n of
         % |S| (= gene_freq_histogram_predicted_strains) strains examined.
         gene_freq_histogram_predicted = zeros(S,1);
         for n=1:S
-           for k=1:K
-               gene_freq_histogram_predicted(n) = gene_freq_histogram_predicted(n) + ...
-                   nchoosek(S,n) * ML_gclass_probs(k)^n * (1-ML_gclass_probs(k))^(S-n)...
-                   * ML_gclass_mixcoeff(k);
-           end
+            for k=1:K
+                gene_freq_histogram_predicted(n) = gene_freq_histogram_predicted(n) + ...
+                    nchoosek(S,n) * ML_gclass_probs(k)^n * (1-ML_gclass_probs(k))^(S-n)...
+                    * ML_gclass_mixcoeff(k);
+            end
         end
-
+        
         % generate predictions of core genes and new genes
         core = zeros(new_core_genes_predicted_strains,1);
         core_var = zeros(new_core_genes_predicted_strains,1);
@@ -357,9 +325,9 @@ SECTION 4.  FUNCTIONS:
         new_var = zeros(new_core_genes_predicted_strains,1);
         total = sum(ML_gclass_mixcoeff(1:end))*ones(new_core_genes_predicted_strains,1);
         total_var = zeros(new_core_genes_predicted_strains,1);
-
+        
         for n=1:new_core_genes_predicted_strains
-            for k = 1:K     
+            for k = 1:K
                 core(n) = core(n) + ML_gclass_probs(k)^n * ML_gclass_mixcoeff(k);
                 core_var(n) = core_var(n) + ML_gclass_probs(k)^n * ...
                     (1-ML_gclass_probs(k)^n) * ML_gclass_mixcoeff(k);
@@ -372,15 +340,15 @@ SECTION 4.  FUNCTIONS:
                 total(n) = total(n) - (1-ML_gclass_probs(k))^n * ML_gclass_mixcoeff(k);
                 total_var(n) = total_var(n) + (1-ML_gclass_probs(k)^n) * ...
                     ML_gclass_probs(k)^n * ML_gclass_mixcoeff(k);
-            end    
+            end
         end
-
+        
         % calculate pairwise shared and different genes
         shared = 0;
         shared_var = 0;
         different = 0;
         different_var = 0;
-
+        
         for k = 1:K
             shared = shared + ML_gclass_probs(k)^2 * ML_gclass_mixcoeff(k);
             shared_var = shared_var + ML_gclass_probs(k)^2 * ...
@@ -392,7 +360,7 @@ SECTION 4.  FUNCTIONS:
                 (1 - 2*ML_gclass_probs(k)*(1-ML_gclass_probs(k))) * ...
                 ML_gclass_mixcoeff(k);
         end
-
+        
         % calculate total genes per genome
         strain_total = 0;
         strain_total_var = 0;
@@ -401,7 +369,7 @@ SECTION 4.  FUNCTIONS:
             strain_total_var = strain_total_var + ML_gclass_probs(k) * ...
                 (1-ML_gclass_probs(k)) * ML_gclass_mixcoeff(k);
         end
-
+        
         %Echo results (notice the absence of semi-colon line endings):
         gene_freq_histogram_predicted = int32(gene_freq_histogram_predicted * ML_N)
         
@@ -421,7 +389,7 @@ SECTION 4.  FUNCTIONS:
         
         strain_total = int32(strain_total * ML_N)
         strain_total_stdv = int32((strain_total_var^(1/2)) * ML_N)
-
+        
         %Echo execution data (notice the absence of semi-colon line endings):
         programStart
         programFinished = datestr(now)
