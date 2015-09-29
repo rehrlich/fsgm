@@ -1,4 +1,6 @@
 function cgs_supragenome(name, counts, outdir)
+%SUPER IMPORTANT:  length of counts is number of genomes + 1.  The first entry 
+%should be a zero.
 %Calculate various parameters using the finite supragenome model of Hogg et al.
 %The function ''cgs_supragenome'' uses the observed frequencies of genes in a
 %set of bacterial genomes and the finite supragenome model of Hogg et al.
@@ -25,8 +27,8 @@ counts = str2num(counts);
 fileName_diary = [outdir, '/CommandWindow_', name, '.txt'];
 diary(fileName_diary);
 
-gene_freq_histogram_predicted_strains = size(counts, 2);
-new_core_genes_predicted_strains = size(counts, 2) * 10;
+gene_freq_histogram_predicted_strains = size(counts, 2) - 1;
+new_core_genes_predicted_strains = size(counts, 2) * 20;
 
 fileName_N_vs_likelihood = [outdir, '/N_vs_likelihood_', name, '.txt'];
 
@@ -34,7 +36,7 @@ gene_freq_histogram_observed = counts;
 gclass_probs_start = [0.1 0.3 0.5 0.7 0.9 1.0];
 gclass_probs_separation_min = 0.05;
 gclass_probs_min = 0.01;
-gclass_mixcoeff_min =0.01;
+gclass_mixcoeff_min = 0.01;
 N_start_offset = 10;
 N_range = 4000;
 
